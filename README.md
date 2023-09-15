@@ -2,12 +2,16 @@ References:
 + [setting up env for writing linux kernel modules in rust](https://www.youtube.com/watch?v=tPs1uRqOnlk)
 + [miny linux](https://gist.github.com/chrisdone/02e165a0004be33734ac2334f215380e)
 
-
+## Download
 Git clone:
-`$ git clone git@github.com:ethandmd/rkvm.git
+```
+$ git clone git@github.com:ethandmd/rkvm.git
+```
 
 Get Busybox to build image:
 `$ git clone https://github.com/mirror/busybox.git`
+
+## Configure Linux:
 
 Change to Linux directory:
 `$ cd rkvm`
@@ -42,6 +46,8 @@ Device Drivers ---> Character devices ---> Serial drivers ---> Console on 8250/1
 File systems ---> Pseudo filesystems ---> /proc file system support ---> yes
 File systems ---> Pseudo filesystems ---> sysfs file system support ---> yes
 ```
+
+## Configure Busybox:
 
 Then, go to busybox dir
 `$ cd ../busybox`
@@ -85,10 +91,40 @@ Make the init file executable:
 Now, grab our image to put our kernel:
 `$ find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../ramdisk.img.gz`.
 
-`$ cd ..`
-
-No run:
-`$ qemu-system-x86_64 -enable-kvm -kernel rkvm/arch/x86/boot/bzImage -initrd busybox/ramdisk.img.gz -nographic -append "console=ttyS0"`
-
+## Run:
+```
+$ cd ..
+$ qemu-system-x86_64 -enable-kvm -kernel rkvm/arch/x86/boot/bzImage -initrd busybox/ramdisk.img.gz -nographic -append "console=ttyS0"
+```
 
 Instructions on loading rkvm module to follow...Initial plan is to load it in `rust/samples/rkvm.rs`
+
+### Rough expectation:
+```
+[    0.663473] Freeing unused kernel image (initmem) memory: 2648K
+[    0.666263] Write protecting the kernel read-only data: 26624k
+[    0.666791] Freeing unused kernel image (rodata/data gap) memory: 1296K
+[    0.698919] x86/mm: Checked W+X mappings: passed, no W+X pages found.
+[    0.699245] x86/mm: Checking user space page tables
+[    0.729200] x86/mm: Checked W+X mappings: passed, no W+X pages found.
+[    0.729516] Run /init as init process
+[    0.730157] mount (47) used greatest stack depth: 14456 bytes left
+
+
+Boot took 0.68 seconds
+
+           (       
+ ( (   (   )\  (   
+ )\)\  )\:((_) )\  
+(_((_)((_)_ |__( ) 
+| '  \ V / / / '_|
+|_|_|_|\_/|_\_\_|  
+
+Welcome to mvkr
+
+
+/bin/sh: can't access tty; job control turned off
+~ # [    1.273909] input: ImExPS/2 Generic Explorer Mouse as /devices/platform/i8042/serio1/input/input3
+
+~ #
+```
