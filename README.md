@@ -1,6 +1,6 @@
 References: 
 + [setting up env for writing linux kernel modules in rust](https://www.youtube.com/watch?v=tPs1uRqOnlk)
-+ [miny linux](https://gist.github.com/chrisdone/02e165a0004be33734ac2334f215380e)
++ [mini linux](https://gist.github.com/chrisdone/02e165a0004be33734ac2334f215380e)
 
 ## Download
 Get modified kernel: 
