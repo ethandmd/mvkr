@@ -3,9 +3,8 @@ References:
 + [miny linux](https://gist.github.com/chrisdone/02e165a0004be33734ac2334f215380e)
 
 ## Download
-Git clone:
-```
-$ git clone git@github.com:ethandmd/rkvm.git
+Get modified kernel: 
+```$ git clone git@github.com:ethandmd/rkvm.git
 ```
 
 Get Busybox to build image:
