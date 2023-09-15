@@ -4,7 +4,8 @@ References:
 
 ## Download
 Get modified kernel: 
-```$ git clone git@github.com:ethandmd/rkvm.git
+```
+$ git clone git@github.com:ethandmd/rkvm.git
 ```
 
 Get Busybox to build image:
