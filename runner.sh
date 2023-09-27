@@ -8,7 +8,7 @@ cd ../
 clang -static test_ioctl.c -o test_ioctl
 cp test_ioctl busybox/_install/
 
-cd ../busybox/_install/
+cd busybox/_install/
 find . | cpio -H newc -o | gzip > ../ramdisk.img.gz
 
 cd ../..
