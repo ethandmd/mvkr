@@ -5,7 +5,7 @@ References:
 ## Download
 Get modified kernel: 
 ```
-$ git clone git@github.com:ethandmd/rkvm.git
+$ git clone git@github.com:ethandmd/linux.git
 ```
 
 Get Busybox to build image:
@@ -14,7 +14,7 @@ Get Busybox to build image:
 ## Configure Linux:
 
 Change to Linux directory:
-`$ cd rkvm`
+`$ cd linux`
 and check:
 `$ make LLVM=1 rustavailable`
 reference `Documentation/rust/quick-start.rst`
@@ -29,23 +29,13 @@ $ make rust-analyzer
 
 Lastly, you'll need all the usual suspects like `clang`,`llvm`, `flex`, `bison`, ...
 
-DEMO CONFIG (ymmv) included, or config yourself:
+I've included a 'full' and a 'min' config for x86 you can use to compile the kernel (ymmv), or config yourself:
 
-Use `make allnoconfig` or `defconfig`, etc... to suit your needs. However, ensure Rust support is enabled in addition to most of the following from the miny linux reference:
+Here is the general recipe to compile a minimal linux with support for rust, enough to use on qemu + busybox, and use loadable modules:
 ```
-64-bit kernel ---> yes
-General setup ---> Initial RAM filesystem and RAM disk (initramfs/initrd) support ---> yes
-General setup ---> Configure standard kernel features ---> Enable support for printk ---> yes
-Executable file formats / Emulations ---> Kernel support for ELF binaries ---> yes
-Executable file formats / Emulations ---> Kernel support for scripts starting with #! ---> yes
-Device Drivers ---> Generic Driver Options ---> Maintain a devtmpfs filesystem to mount at /dev ---> yes
-Device Drivers ---> Generic Driver Options ---> Automount devtmpfs at /dev, after the kernel mounted the rootfs ---> yes
-Device Drivers ---> Character devices ---> Enable TTY ---> yes
-Device Drivers ---> Character devices ---> Serial drivers ---> 8250/16550 and compatible serial support ---> yes
-Device Drivers ---> Character devices ---> Serial drivers ---> Console on 8250/16550 and compatible serial port ---> yes
-File systems ---> Pseudo filesystems ---> /proc file system support ---> yes
-File systems ---> Pseudo filesystems ---> sysfs file system support ---> yes
+$ make LLVM=1 allnoconfig qemu-busybox-min.config rust.config
 ```
+then, `make menuconfig` and select `Enable loadable module support` from main menu.
 
 ## Configure Busybox:
 
@@ -54,77 +44,78 @@ Then, go to busybox dir
 and run the following to use default config
 `$ make defconfig`
 before opting to statically compile so that we don't have to add libc to our image
-`$ make menuconfig` -> select `settings` -> select `build static ...`
+`$ make menuconfig` -> select `settings` -> select `Build static binary (no shared libs)`
 Finally, build and install busybox:
 `$ make -j$(nproc)`.
 `$ make install`.
-Go to _install dir and:
-`$ mkdir bin sbin etc proc sys usr/bin usr/sbin`
-In case some, like `etc`, don't already exist, then add the following init file in _install/init:
+Go to _install dir and create any missing mount points you'll want later. Then, copy the `inittab` from `busybox/examples` into 
+your `_install` folder:
 ```
-#!/bin/sh
+$ mkdir _install/etc
+$ cp examples/inittab _install/etc 
+```
+Then remove the following lines from `_install/etc/inittab`, example diff between original (left) and modified (right):
+```
+   1 +-- 68 lines: # /etc/inittab init(8) configuration for BusyBox·························│+   1 +-- 68 lines: # /etc/inittab init(8) configuration for BusyBox························
+   69 # login, but since we are bypassing login in this case, BusyBox lets you do            │   69 # login, but since we are bypassing login in this case, BusyBox lets you do
+   70 # this yourself...                                                                     │   70 # this yourself...
+   71 #                                                                                      │   71 #
+   72 # Start an "askfirst" shell on the console (whatever that may be)                      │   72 # Start an "askfirst" shell on the console (whatever that may be)
+   73 ::askfirst:-/bin/sh                                                                    │   73 ::askfirst:-/bin/sh
+   74 # Start an "askfirst" shell on /dev/tty2-4                                             │   74 # Start an "askfirst" shell on /dev/tty2-4
+   75 tty2::askfirst:-/bin/sh                                                                │      --------------------------------------------------------------------------------------
+   76 tty3::askfirst:-/bin/sh                                                                │      --------------------------------------------------------------------------------------
+   77 tty4::askfirst:-/bin/sh                                                                │      --------------------------------------------------------------------------------------
+   78                                                                                        │      --------------------------------------------------------------------------------------
+   79 # /sbin/getty invocations for selected ttys                                            │      --------------------------------------------------------------------------------------
+   80 tty4::respawn:/sbin/getty 38400 tty5                                                   │      --------------------------------------------------------------------------------------
+   81 tty5::respawn:/sbin/getty 38400 tty6                                                   │      --------------------------------------------------------------------------------------
+   82                                                                                        │      --------------------------------------------------------------------------------------
+   83 # Example of how to put a getty on a serial line (for a terminal)                      │   75 # Example of how to put a getty on a serial line (for a terminal)
+   84 #::respawn:/sbin/getty -L ttyS0 9600 vt100                                             │   76 #::respawn:/sbin/getty -L ttyS0 9600 vt100
+   85 #::respawn:/sbin/getty -L ttyS1 9600 vt100                                             │   77 #::respawn:/sbin/getty -L ttyS1 9600 vt100
+   86 #                                                                                      │   78 #
+   87 # Example how to put a getty on a modem line.                                          │   79 # Example how to put a getty on a modem line.
+   88 #::respawn:/sbin/getty 57600 ttyS2                                                     │   80 #::respawn:/sbin/getty 57600 ttyS2
++  89 +--  8 lines: # Stuff to do when restarting the init process···························│+  81 +--  8 lines: # Stuff to do when restarting the init process·
+```
+(diff command: `nvim -d file1 file2`).
 
+Then add the following init file in _install/init.d/rcS (create `init.d/` if it doesn't exit):
+```
+mkdir -p /proc
+mkdir -p /sys
 mount -t proc none /proc
 mount -t sysfs none /sys
-
-cat <<!
-
-
-Boot took $(cut -d' ' -f1 /proc/uptime) seconds
-
-           (       
- ( (   (   )\  (   
- )\)\  )\:((_) )\  
-(_((_)((_)_ |__( ) 
-| '  \\ V / / / '_|
-|_|_|_|\_/|_\_\_|  
-
-Welcome to mvkr
-
-
-!
-exec /bin/sh
-```
-Make the init file executable:
-`$ chmod+x init`
-
-Now, grab our image to put our kernel:
-`$ find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../ramdisk.img.gz`.
-
-## Run:
-```
-$ cd ..
-$ qemu-system-x86_64 -enable-kvm -kernel rkvm/arch/x86/boot/bzImage -initrd busybox/ramdisk.img.gz -nographic -append "console=ttyS0"
+mount -t devtmpfs none /dev
 ```
 
-Instructions on loading rkvm module to follow...Initial plan is to load it in `rust/samples/rkvm.rs`
-
-### Rough expectation:
+## Build out of tree rust kernel module:
+Return to top level directory (`mvkr/`) and:
 ```
-[    0.663473] Freeing unused kernel image (initmem) memory: 2648K
-[    0.666263] Write protecting the kernel read-only data: 26624k
-[    0.666791] Freeing unused kernel image (rodata/data gap) memory: 1296K
-[    0.698919] x86/mm: Checked W+X mappings: passed, no W+X pages found.
-[    0.699245] x86/mm: Checking user space page tables
-[    0.729200] x86/mm: Checked W+X mappings: passed, no W+X pages found.
-[    0.729516] Run /init as init process
-[    0.730157] mount (47) used greatest stack depth: 14456 bytes left
+$ cd rkvm/
+$ make # Hardcoded LLVM=1 in Makefile
+$ cp rkvm.ko ../busybox/_install # Copy kernel mod for packaging in busybox image. 
+```
 
+Now, generate and compress our busybox image:
+```
+$ cd ../busybox/_install
+$ find . | cpio -H newc -o | gzip > ../ramdisk.img.gz
+```
 
-Boot took 0.68 seconds
-
-           (       
- ( (   (   )\  (   
- )\)\  )\:((_) )\  
-(_((_)((_)_ |__( ) 
-| '  \ V / / / '_|
-|_|_|_|\_/|_\_\_|  
-
-Welcome to mvkr
-
-
-/bin/sh: can't access tty; job control turned off
-~ # [    1.273909] input: ImExPS/2 Generic Explorer Mouse as /devices/platform/i8042/serio1/input/input3
-
-~ #
+## Run
+Finally, return to top level directory and run qemu with busybox image and our minimal linux kernel.
+```
+$ cd ../.. # Return to top level directory (aka mvkr/)
+$ qemu-system-x86_64 -enable-kvm -kernel linux/arch/x86/boot/bzImage -initrd busybox/ramdisk.img.gz -nographic
+```
+### Load rkvm.ko:
+Within qemu, load the kernel mod you copied into busybox image:
+```
+# insmod rkvm.ko # Module should be in root directory
+# dmesg | tail -5 # Check dmesg (ok if tainted kernel after loading our custom module)
+# ls -l /dev/rkvm # Check to see that misc device is registered!
+[optional]
+# rmmod rkvm.ko
 ```
