@@ -2,7 +2,7 @@
 
 use kernel::prelude::*;
 use kernel::{
-    error,
+    sync::Arc,
     miscdev,
     ForeignOwnable,
     file::{File, IoctlCommand, Operations},
@@ -20,21 +20,22 @@ struct Rkvm {
     _dev: Pin<Box<miscdev::Registration<Self>>>,
 }
 
+struct FopsData;
+
 #[vtable]
 impl Operations for Rkvm {
-    //type OpenData = ();
-    //type Data = ();
+    type OpenData = Arc<FopsData>;
+    type Data = Arc<FopsData>;
     fn open(data: &Self::OpenData, _file: &File) -> Result<Self::Data> {
-        pr_info!("rkvm open");
-        Ok(*data)
+        Ok(data.clone())
     }
     
     fn ioctl(
         _data: <Self::Data as ForeignOwnable>::Borrowed<'_>,
         _file: &File,
-        _cmd: &mut IoctlCommand,
+        cmd: &mut IoctlCommand,
     ) -> Result<i32> {
-        pr_info!("rkvm ioctl");
+        pr_info!("rkvm ioctl: {}", cmd.raw().0);
         Ok(0)
     }
 }
@@ -42,13 +43,10 @@ impl Operations for Rkvm {
 impl kernel::Module for Rkvm {
     fn init(_name: &'static CStr, _module: &'static ThisModule) -> Result<Self> {
         pr_info!("rkvm init");
-        //let dev = miscdev::Registration::new_pinned(fmt!("rkvm"), ());
-        if let Ok(dev) = miscdev::Registration::new_pinned(fmt!("rkvm"), ()) {
-            Ok(Rkvm { _dev: dev })
-        } else {
-            pr_err!("rkvm init failed");
-            Err(error::code::ENODEV)
-        }
+        let state = Arc::try_new(FopsData)?;
+        Ok(Self {
+            _dev: miscdev::Registration::new_pinned(fmt!("rkvm"), state)?,
+        })
     }
 }
 
