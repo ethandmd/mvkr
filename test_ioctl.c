@@ -6,18 +6,22 @@
 
 
 /* Define ioctl commands */
-#define IOCTL_ONE 0x00000001
-#define IOCTL_FOUR   0x00000004
+#define RKVM_GET_API_VERSION 0
+#define RKVM_CREATE_VM 1
 
 
 int main(void)
 {
-   int fd = open("/dev/rkvm", O_RDWR);
-   if (fd < 0) {
+   int kvmfd = open("/dev/rkvm", O_RDWR);
+   if (kvmfd < 0) {
       perror("open /dev/rkvm");
       return -1;
    }
-   ioctl(fd, IOCTL_ONE);
+   int api = ioctl(kvmfd, RKVM_GET_API_VERSION, NULL);
+   printf("rkvm api version: %d\n", api);
+
+   int vmfd = ioctl(kvmfd, RKVM_CREATE_VM, NULL);
+   printf("vmfd: %d\n", vmfd);
    return 0;
 }
 
