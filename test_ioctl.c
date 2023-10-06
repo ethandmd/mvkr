@@ -12,16 +12,22 @@
 
 int main(void)
 {
-   int kvmfd = open("/dev/rkvm", O_RDWR);
-   if (kvmfd < 0) {
-      perror("open /dev/rkvm");
-      return -1;
-   }
-   int api = ioctl(kvmfd, RKVM_GET_API_VERSION, NULL);
-   printf("rkvm api version: %d\n", api);
+    int rkvmfd = open("/dev/rkvm", O_RDWR);
+    if (rkvmfd < 0) {
+       perror("open /dev/rkvm");
+       return -1;
+    }
+    int api = ioctl(rkvmfd, RKVM_GET_API_VERSION, NULL);
+    printf("rkvm api version: %d\n", api);
 
-   int vmfd = ioctl(kvmfd, RKVM_CREATE_VM, NULL);
-   printf("vmfd: %d\n", vmfd);
-   return 0;
+    int vmfd = ioctl(rkvmfd, RKVM_CREATE_VM, NULL);
+    if (vmfd < 0) {
+       perror("rkvm create vm");
+       return -1;
+    }
+
+    int vm_fd_test = ioctl(vmfd, 1, NULL);
+    printf("vm fd test: %d\n", vm_fd_test);
+    return 0;
 }
 
