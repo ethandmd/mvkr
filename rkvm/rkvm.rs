@@ -3,6 +3,7 @@
 use kernel::prelude::*;
 use kernel::{
     error,
+    str::CString,
     sync::Arc,
     miscdev,
     ForeignOwnable,
@@ -25,21 +26,22 @@ const RKVM_API_VERSION: u32 = 99;
 const RKVM_GET_API_VERSION: u32 = 0;
 const RKVM_CREATE_VM: u32 = 1;
 
-// struct Vm(UnsafeCell<bindings::kvm>);
-// impl Vm {
-//    fn new() -> Self {}
-// }
-// impl file::Operations for Vm {}
-
-struct Vm {
-    secret: i32,
-}
+struct Vm;
 
 impl Vm {
+    fn init(kind: usize, fd: u32) -> Result<Arc<Self>> {
+        let fdname = CString::try_from_fmt(fmt!("{}", fd))?;
+        // SAFETY: FFI call.
+        //unsafe { bindings::kvm_create_vm(kind, fdname.as_char_ptr()) }
+        //    .map(|kvm| Arc::try_new(Self(kvm))?)
+        //    .map_err(|_| error::code::ENOMEM) // TODO: PTR_ERR(kvm)
+        Err(())
+    }
+
     fn create() -> Result<i32> {
         let fd = file::FileDescriptorReservation::new(flags::O_CLOEXEC)?;
         let fd_clone = fd.reserved_fd();
-        let this = Arc::try_new(Vm { secret: 42 })?;
+        let this = Self::init(0, fd_clone)?; //Arc::try_new( Vm { })?;
         file::AnonInode::<Self>::register(fd, fmt!("rkvm-vm"), this.into_foreign() as *mut c_void, flags::O_RDWR)?;
         Ok(fd_clone as i32)
     }
@@ -58,7 +60,7 @@ impl file::Operations for Vm {
         _file: &File,
         _cmd: &mut file::IoctlCommand,
     ) -> Result<i32> {
-        Ok(data.secret)
+        Ok(0)
     }
 }
 
