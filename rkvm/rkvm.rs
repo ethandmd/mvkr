@@ -6,7 +6,7 @@ use kernel::{
     sync::Arc,
     miscdev,
     ForeignOwnable,
-    file::{self, File},
+    file::{self, File, flags},
 };
 use core::ffi::c_void;
 
@@ -37,10 +37,10 @@ struct Vm {
 
 impl Vm {
     fn create() -> Result<i32> {
-        let fd = file::FileDescriptorReservation::new(file::flags::O_CLOEXEC)?;
+        let fd = file::FileDescriptorReservation::new(flags::O_CLOEXEC)?;
         let fd_clone = fd.reserved_fd();
         let this = Arc::try_new(Vm { secret: 42 })?;
-        file::AnonInode::<Self>::register(fd, fmt!("rkvm-vm"), this.into_foreign() as *mut c_void, file::flags::O_RDWR)?;
+        file::AnonInode::<Self>::register(fd, fmt!("rkvm-vm"), this.into_foreign() as *mut c_void, flags::O_RDWR)?;
         Ok(fd_clone as i32)
     }
 }
