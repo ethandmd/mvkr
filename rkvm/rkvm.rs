@@ -8,6 +8,7 @@ use kernel::{
     ForeignOwnable,
     file::{self, File},
 };
+use core::ffi::c_void;
 
 module! {
     type: Rkvm,
@@ -38,8 +39,8 @@ impl Vm {
     fn create() -> Result<i32> {
         let fd = file::FileDescriptorReservation::new(file::flags::O_CLOEXEC)?;
         let fd_clone = fd.reserved_fd();
-        let this = Vm { secret: 42 };
-        file::AnonInode::<Self>::register(fd, fmt!("rkvm-vm"), Arc::try_new(this)?, file::flags::O_RDWR)?;
+        let this = Arc::try_new(Vm { secret: 42 })?;
+        file::AnonInode::<Self>::register(fd, fmt!("rkvm-vm"), this.into_foreign() as *mut c_void, file::flags::O_RDWR)?;
         Ok(fd_clone as i32)
     }
 }
