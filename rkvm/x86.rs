@@ -3,16 +3,18 @@
 /// Most code copied from osdev x86_64 crate because strapping in a
 /// 3P crate didn't seem feasible and bindgen was giving me flak.
 
+use kernel::error::Result;
 use core::arch::asm;
 
 /// Consts for x86_64.
-const IA32_FEATURE_CONTROL: u32 = 0x3A;
+pub const IA32_FEATURE_CONTROL: u32 = 0x3A; // Vol 3C 24.1
+pub const IA32_VMX_BASIC: u32 = 0x480; // Vol 3C A.1
 
 /// Control Register 4.
-struct Cr4;
+pub struct Cr4;
 
 impl Cr4 {
-    fn read() -> u64 { 
+    pub fn read() -> u64 { 
         let value: u64;
         // SAFETY: Read from CR4.
         unsafe {
@@ -21,9 +23,9 @@ impl Cr4 {
         value
     }
 
-    fn write(flags: u64) {
+    pub fn write(flags: u64) {
         // Sanity check that flags are in range:
-        flags = flags & 0x3FF_FFFF;
+        let flags = flags & 0x3FF_FFFF;
         let old = Self::read();
         let res = old & !0x3FF_FFFF;
         let new = res | flags;
@@ -32,7 +34,7 @@ impl Cr4 {
         unsafe { Self::overwrite(new) }
     }
 
-    fn overwrite(flags: u64) {
+    pub fn overwrite(flags: u64) {
         // SAFETY: You could overwrite protected bits.
         unsafe {
             asm!("mov cr4, {}", in(reg) flags as u64)
@@ -42,7 +44,7 @@ impl Cr4 {
 
 /// CR4 Bitflags
 // Unnecessary? #[repr(u64)]
-enum Cr4Flags {
+pub enum Cr4Flags {
     VME = 1 << 0,
     PVI = 1 << 1,
     TSD = 1 << 2,
@@ -68,16 +70,16 @@ enum Cr4Flags {
 }
 
 /// Model Specific Register
-struct Msr(u32);
+pub struct Msr(u32);
 
 impl Msr {
     /// Create a new MSR with the given register number.
-    fn new(reg: u32) -> Self {
+    pub fn new(reg: u32) -> Self {
         Self(reg)
     }
 
     /// Read the MSR.
-    fn read()&self) -> u64 {
+    pub fn read(&self) -> u64 {
         let (high, low): (u32, u32);
         // SAFETY: Read from MSR. Caller ensures no side effects.
         unsafe {
@@ -101,4 +103,9 @@ impl Msr {
             );
         }
     }
+}
+
+/// Enter VMX operation.
+pub fn vmxon(pa: u64) -> Result {
+    Ok(())
 }
