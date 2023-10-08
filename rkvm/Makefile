@@ -1,4 +1,4 @@
-obj-m+=rkvm.o
+obj-m += rkvm.o
 
 KDIR ?= ../linux/
 

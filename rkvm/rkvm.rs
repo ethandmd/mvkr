@@ -1,4 +1,4 @@
-//! Experimental port of KVM to Rust: rkvm.
+//! Experimental out of tree Rust in-kernel hypervisor for VMX enabled x86 systems.
 
 use kernel::prelude::*;
 use kernel::{
@@ -11,11 +11,14 @@ use kernel::{
 };
 use core::ffi::c_void;
 
+pub mod x86;
+pub mod vmx;
+
 module! {
     type: Rkvm,
     name: "rkvm",
     author: "ethan",
-    description: "Experimental port of KVM to Rust",
+    description: "Experimental out of tree Rust in-kernel hypervisor for VMX enabled x86 systems.",
     license: "GPL",
 }
 
@@ -35,7 +38,7 @@ impl Vm {
         //unsafe { bindings::kvm_create_vm(kind, fdname.as_char_ptr()) }
         //    .map(|kvm| Arc::try_new(Self(kvm))?)
         //    .map_err(|_| error::code::ENOMEM) // TODO: PTR_ERR(kvm)
-        Err(())
+        Arc::try_new(Self)
     }
 
     fn create() -> Result<i32> {
