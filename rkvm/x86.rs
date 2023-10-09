@@ -3,17 +3,19 @@
 /// Most code copied from osdev x86_64 crate because strapping in a
 /// 3P crate didn't seem feasible and bindgen was giving me flak.
 
-use kernel::error::Result;
+use kernel::error::{code, Result};
 use core::arch::asm;
 
-/// Consts for x86_64.
+/// MSR IA32_FEATURE_CONTROL
 pub const IA32_FEATURE_CONTROL: u32 = 0x3A; // Vol 3C 24.1
+/// MSR IA32_VMX_BASIC
 pub const IA32_VMX_BASIC: u32 = 0x480; // Vol 3C A.1
 
 /// Control Register 4.
 pub struct Cr4;
 
 impl Cr4 {
+    /// Read CR4.
     pub fn read() -> u64 { 
         let value: u64;
         // SAFETY: Read from CR4.
@@ -23,6 +25,7 @@ impl Cr4 {
         value
     }
 
+    /// Write CR4.
     pub fn write(flags: u64) {
         // Sanity check that flags are in range:
         let flags = flags & 0x3FF_FFFF;
@@ -31,9 +34,10 @@ impl Cr4 {
         let new = res | flags;
 
         // SAFETY: You could overwrite protected bits.
-        unsafe { Self::overwrite(new) }
+        Self::overwrite(new)
     }
 
+    /// Overwrite CR4.
     pub fn overwrite(flags: u64) {
         // SAFETY: You could overwrite protected bits.
         unsafe {
@@ -43,29 +47,50 @@ impl Cr4 {
 }
 
 /// CR4 Bitflags
-// Unnecessary? #[repr(u64)]
 pub enum Cr4Flags {
+    /// TODO
     VME = 1 << 0,
+    /// TODO
     PVI = 1 << 1,
+    /// TODO
     TSD = 1 << 2,
+    /// TODO
     DE = 1 << 3,
+    /// TODO
     PSE = 1 << 4,
+    /// TODO
     PAE = 1 << 5,
+    /// TODO
     MCE = 1 << 6,
+    /// TODO
     PGE = 1 << 7,
+    /// TODO
     PCE = 1 << 8,
+    /// TODO
     OSFXSR = 1 << 9,
+    /// TODO
     OSXMMEXCPT = 1 << 10,
-    VMXE = 1 << 13, // Virtual Machine Extensions enable
-    SMXE = 1 << 14, // Safer Mode Extensions Enable
+    /// VMX enable
+    VMXE = 1 << 13,
+    /// Safer mode extensions enable
+    SMXE = 1 << 14,
+    /// TODO
     FSGSBASE = 1 << 16,
+    /// TODO
     PCIDE = 1 << 17,
+    /// TODO
     OSXSAVE = 1 << 18,
+    /// TODO
     SMEP = 1 << 20,
+    /// TODO
     SMAP = 1 << 21,
+    /// TODO
     PKE = 1 << 22,
+    /// TODO
     CET = 1 << 23,
+    /// TODO
     PKS = 1 << 24,
+    /// TODO
     UINTR = 1 << 25,
 }
 
@@ -79,6 +104,7 @@ impl Msr {
     }
 
     /// Read the MSR.
+    #[inline(always)]
     pub fn read(&self) -> u64 {
         let (high, low): (u32, u32);
         // SAFETY: Read from MSR. Caller ensures no side effects.
@@ -89,7 +115,7 @@ impl Msr {
     }
 
     /// Write the MSR.
-    #[inline]
+    #[inline(always)]
     pub unsafe fn write(&mut self, value: u64) {
         let low = value as u32;
         let high = (value >> 32) as u32;
@@ -105,7 +131,34 @@ impl Msr {
     }
 }
 
+/// Read VMX success/failure.
+/// Reference Vol 3C 31.2: Conventions.
+#[inline(always)]
+pub fn vmx_result() -> Result {
+    let rflags: u64;
+
+    // SAFETY: Read low 8 bits from RFLAGS into ah.
+    // Can't use pushfq; popq to get entire 64b reg.
+    unsafe {
+        //asm!("lahf {}", out(reg) rflags)
+        asm!("pushfq; popq {}", out(reg) rflags, options(att_syntax))
+    }
+    // Check CF (1 << 0), PF, AF, ZF (1 << 6), SF, and OF.
+    // VMsuccess := All bits cleared.
+    // VMfailInvalid: CF = 1.
+    // VMfailValid(ErrorNumber): ZF = 1.
+    if rflags & 0x1F == 0 {
+        Ok(())
+    } else if rflags & 0x1 == 1 {
+        Err(code::EINVAL)
+    } else {
+        Err(code::EINVAL)
+    }
+}
+
 /// Enter VMX operation.
 pub fn vmxon(pa: u64) -> Result {
-    Ok(())
+    // SAFETY: Caller ensures no side effects. Requires CPL 0.
+    unsafe { asm!("vmxon [{}]", in(reg) pa); }
+    vmx_result()
 }
