@@ -3,7 +3,7 @@
 use kernel::prelude::*;
 use kernel::{
     error,
-    str::CString,
+    //str::CString,
     sync::Arc,
     miscdev,
     ForeignOwnable,
@@ -32,8 +32,8 @@ const RKVM_CREATE_VM: u32 = 1;
 struct Vm;
 
 impl Vm {
-    fn init(kind: usize, fd: u32) -> Result<Arc<Self>> {
-        let fdname = CString::try_from_fmt(fmt!("{}", fd))?;
+    fn init(_kind: usize, _fd: u32) -> Result<Arc<Self>> {
+        //let fdname = CString::try_from_fmt(fmt!("{}", fd))?;
         // SAFETY: FFI call.
         //unsafe { bindings::kvm_create_vm(kind, fdname.as_char_ptr()) }
         //    .map(|kvm| Arc::try_new(Self(kvm))?)
@@ -59,7 +59,7 @@ impl file::Operations for Vm {
     }
 
     fn ioctl(
-        data: <Self::Data as ForeignOwnable>::Borrowed<'_>,
+        _data: <Self::Data as ForeignOwnable>::Borrowed<'_>,
         _file: &File,
         _cmd: &mut file::IoctlCommand,
     ) -> Result<i32> {
@@ -86,6 +86,7 @@ impl file::IoctlHandler for RkvmApiHandler {
 /// Rkvm module struct which owns the miscdev registration.
 struct Rkvm {
     _dev: Pin<Box<miscdev::Registration<Self>>>,
+    _vmx: vmx::VmxonRegion,
 }
 
 #[vtable]
@@ -109,8 +110,12 @@ impl file::Operations for Rkvm {
 impl kernel::Module for Rkvm {
     fn init(_name: &'static CStr, _module: &'static ThisModule) -> Result<Self> {
         pr_info!("rkvm init");
+        let vmx = vmx::VmxonRegion::new()?;
+        vmx::enable_vmx(vmx.get_phys_addr())?;
         Ok(Self {
             _dev: miscdev::Registration::new_pinned(fmt!("rkvm"), ())?,
+            _vmx: vmx,
+
         })
     }
 }
